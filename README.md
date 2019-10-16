@@ -21,30 +21,16 @@ I recommend joining either the [official discord.py server][guild] or the [Disco
 ## Installing
 
 To install the library without full voice support, you can just run the following command:
-
 ```
-python3 -m pip install -U discord.py
+python3 -m pip install -U https://github.com/AmiT177/discord.py/archive/async.zip#egg=discord.py
 ```
 
 Otherwise to get voice support you should run the following command:
 
 ```
-python3 -m pip install -U discord.py[voice]
+python3 -m pip install -U https://github.com/AmiT177/discord.py/archive/async.zip#egg=discord.py[voice]
 ```
 
-To install the development version, do the following:
-
-```
-python3 -m pip install -U https://github.com/Rapptz/discord.py/archive/master.zip#egg=discord.py[voice]
-```
-
-or the more long winded from cloned source:
-
-```
-$ git clone https://github.com/Rapptz/discord.py
-$ cd discord.py
-$ python3 -m pip install -U .[voice]
-```
 
 Please note that on Linux installing voice you must install the following packages via your favourite package manager (e.g. `apt`, `yum`, etc) before running the above command:
 
