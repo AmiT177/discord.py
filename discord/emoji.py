@@ -27,6 +27,7 @@ DEALINGS IN THE SOFTWARE.
 from . import utils
 from .mixins import Hashable
 
+
 class Emoji(Hashable):
     """Represents a custom emoji.
 
@@ -82,7 +83,8 @@ class Emoji(Hashable):
         self.roles = emoji.get('roles', [])
         if self.roles:
             roles = set(self.roles)
-            self.roles = [role for role in self.server.roles if role.id in roles]
+            self.roles = [
+                role for role in self.server.roles if role.id in roles]
 
     def _iterator(self):
         for attr in self.__slots__:
@@ -104,4 +106,4 @@ class Emoji(Hashable):
     @property
     def url(self):
         """Returns a URL version of the emoji."""
-        return "https://discordapp.com/api/emojis/{0.id}.png".format(self)
+        return "https://cdn.discordapp.com/emojis/{0.id}.png".format(self)

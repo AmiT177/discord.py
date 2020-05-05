@@ -30,9 +30,11 @@ import datetime
 from base64 import b64encode
 import asyncio
 import json
-import warnings, functools
+import warnings
+import functools
 
 DISCORD_EPOCH = 1420070400000
+
 
 class cached_property:
     def __init__(self, function):
@@ -47,6 +49,7 @@ class cached_property:
         setattr(instance, self.function.__name__, value)
 
         return value
+
 
 class CachedSlotProperty:
     def __init__(self, name, function):
@@ -65,31 +68,38 @@ class CachedSlotProperty:
             setattr(instance, self.name, value)
             return value
 
+
 def cached_slot_property(name):
     def decorator(func):
         return CachedSlotProperty(name, func)
     return decorator
+
 
 def parse_time(timestamp):
     if timestamp:
         return datetime.datetime(*map(int, re_split(r'[^\d]', timestamp.replace('+00:00', ''))))
     return None
 
+
 def deprecated(instead=None):
     def actual_decorator(func):
         @functools.wraps(func)
         def decorated(*args, **kwargs):
-            warnings.simplefilter('always', DeprecationWarning) # turn off filter
+            warnings.simplefilter(
+                'always', DeprecationWarning)  # turn off filter
             if instead:
                 fmt = "{0.__name__} is deprecated, use {1} instead."
             else:
                 fmt = '{0.__name__} is deprecated.'
 
-            warnings.warn(fmt.format(func, instead), stacklevel=3, category=DeprecationWarning)
-            warnings.simplefilter('default', DeprecationWarning) # reset filter
+            warnings.warn(fmt.format(func, instead),
+                          stacklevel=3, category=DeprecationWarning)
+            warnings.simplefilter(
+                'default', DeprecationWarning)  # reset filter
             return func(*args, **kwargs)
         return decorated
     return actual_decorator
+
 
 def oauth_url(client_id, permissions=None, server=None, redirect_uri=None):
     """A helper function that returns the OAuth2 URL for inviting the bot
@@ -107,20 +117,23 @@ def oauth_url(client_id, permissions=None, server=None, redirect_uri=None):
     redirect_uri : str
         An optional valid redirect URI.
     """
-    url = 'https://discordapp.com/oauth2/authorize?client_id={}&scope=bot'.format(client_id)
+    url = 'https://discord.com/oauth2/authorize?client_id={}&scope=bot'.format(
+        client_id)
     if permissions is not None:
         url = url + '&permissions=' + str(permissions.value)
     if server is not None:
         url = url + "&guild_id=" + server.id
     if redirect_uri is not None:
         from urllib.parse import urlencode
-        url = url + "&response_type=code&" + urlencode({'redirect_uri': redirect_uri})
+        url = url + "&response_type=code&" + \
+            urlencode({'redirect_uri': redirect_uri})
     return url
 
 
 def snowflake_time(id):
     """Returns the creation date in UTC of a discord id."""
     return datetime.datetime.utcfromtimestamp(((int(id) >> 22) + DISCORD_EPOCH) / 1000)
+
 
 def time_snowflake(datetime_obj, high=False):
     """Returns a numeric snowflake pretending to be created at the given date.
@@ -135,10 +148,12 @@ def time_snowflake(datetime_obj, high=False):
     high
         Whether or not to set the lower 22 bit to high or low.
     """
-    unix_seconds = (datetime_obj - type(datetime_obj)(1970, 1, 1)).total_seconds()
+    unix_seconds = (datetime_obj - type(datetime_obj)
+                    (1970, 1, 1)).total_seconds()
     discord_millis = int(unix_seconds * 1000 - DISCORD_EPOCH)
 
     return (discord_millis << 22) + (2**22-1 if high else 0)
+
 
 def find(predicate, seq):
     """A helper to return the first element found in the sequence
@@ -167,6 +182,7 @@ def find(predicate, seq):
         if predicate(element):
             return element
     return None
+
 
 def get(iterable, **attrs):
     """A helper that returns the first element in the iterable that meets
@@ -231,8 +247,10 @@ def _unique(iterable):
     adder = seen.add
     return [x for x in iterable if not (x in seen or adder(x))]
 
+
 def _null_event(*args, **kwargs):
     pass
+
 
 def _get_mime_type_for_image(data):
     if data.startswith(b'\x89\x50\x4E\x47\x0D\x0A\x1A\x0A'):
@@ -242,12 +260,13 @@ def _get_mime_type_for_image(data):
     else:
         raise InvalidArgument('Unsupported image type given')
 
+
 def _bytes_to_base64_data(data):
     fmt = 'data:{mime};base64,{data}'
     mime = _get_mime_type_for_image(data)
     b64 = b64encode(data).decode('ascii')
     return fmt.format(mime=mime, data=b64)
 
+
 def to_json(obj):
     return json.dumps(obj, separators=(',', ':'), ensure_ascii=True)
-

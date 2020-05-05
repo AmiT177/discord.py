@@ -24,6 +24,8 @@ FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
 DEALINGS IN THE SOFTWARE.
 """
 
+from . import __version__, utils
+from .errors import HTTPException, Forbidden, NotFound, LoginFailure, GatewayNotFound
 import aiohttp
 import asyncio
 import json
@@ -35,8 +37,6 @@ from email.utils import parsedate_to_datetime
 
 log = logging.getLogger(__name__)
 
-from .errors import HTTPException, Forbidden, NotFound, LoginFailure, GatewayNotFound
-from . import __version__, utils
 
 @asyncio.coroutine
 def json_or_text(response):
@@ -45,8 +45,9 @@ def json_or_text(response):
         return json.loads(text)
     return text
 
+
 class Route:
-    BASE = 'https://discordapp.com/api/v6'
+    BASE = 'https://discord.com/api/v6'
 
     def __init__(self, method, path, **parameters):
         self.path = path
@@ -66,6 +67,7 @@ class Route:
         # the bucket is just method + path w/ major parameters
         return '{0.method}:{0.channel_id}:{0.guild_id}:{0.path}'.format(self)
 
+
 class MaybeUnlock:
     def __init__(self, lock):
         self.lock = lock
@@ -81,6 +83,7 @@ class MaybeUnlock:
         if self._unlock:
             self.lock.release()
 
+
 class HTTPClient:
     """Represents an HTTP client sending HTTP requests to the Discord API."""
 
@@ -90,7 +93,8 @@ class HTTPClient:
     def __init__(self, connector=None, *, loop=None):
         self.loop = asyncio.get_event_loop() if loop is None else loop
         self.connector = connector
-        self.session = aiohttp.ClientSession(connector=connector, loop=self.loop)
+        self.session = aiohttp.ClientSession(
+            connector=connector, loop=self.loop)
         self._locks = weakref.WeakValueDictionary()
         self._global_over = asyncio.Event(loop=self.loop)
         self._global_over.set()
@@ -98,7 +102,8 @@ class HTTPClient:
         self.bot_token = False
 
         user_agent = 'DiscordBot (https://github.com/Rapptz/discord.py {0}) Python/{1[0]}.{1[1]} aiohttp/{2}'
-        self.user_agent = user_agent.format(__version__, sys.version_info, aiohttp.__version__)
+        self.user_agent = user_agent.format(
+            __version__, sys.version_info, aiohttp.__version__)
 
     @asyncio.coroutine
     def request(self, route, *, header_bypass_delay=None, **kwargs):
@@ -118,7 +123,8 @@ class HTTPClient:
         }
 
         if self.token is not None:
-            headers['Authorization'] = 'Bot ' + self.token if self.bot_token else self.token
+            headers['Authorization'] = 'Bot ' + \
+                self.token if self.bot_token else self.token
 
         # some checking if it's a JSON request
         if 'json' in kwargs:
@@ -135,7 +141,8 @@ class HTTPClient:
         with MaybeUnlock(lock) as maybe_lock:
             for tries in range(5):
                 r = yield from self.session.request(method, url, **kwargs)
-                log.debug(self.REQUEST_LOG.format(method=method, url=url, status=r.status, json=kwargs.get('data')))
+                log.debug(self.REQUEST_LOG.format(method=method,
+                                                  url=url, status=r.status, json=kwargs.get('data')))
                 try:
                     # even errors have text involved in them so this is safe to call
                     data = yield from json_or_text(r)
@@ -146,7 +153,8 @@ class HTTPClient:
                         # we've depleted our current bucket
                         if header_bypass_delay is None:
                             now = parsedate_to_datetime(r.headers['Date'])
-                            reset = datetime.datetime.fromtimestamp(int(r.headers['X-Ratelimit-Reset']), datetime.timezone.utc)
+                            reset = datetime.datetime.fromtimestamp(
+                                int(r.headers['X-Ratelimit-Reset']), datetime.timezone.utc)
                             delta = (reset - now).total_seconds()
                         else:
                             delta = header_bypass_delay
@@ -158,7 +166,8 @@ class HTTPClient:
 
                     # the request was successful so just return the text/json
                     if 300 > r.status >= 200:
-                        log.debug(self.SUCCESS_LOG.format(method=method, url=url, text=data))
+                        log.debug(self.SUCCESS_LOG.format(
+                            method=method, url=url, text=data))
                         return data
 
                     # we are being rate limited
@@ -172,11 +181,13 @@ class HTTPClient:
                         # check if it's a global rate limit
                         is_global = data.get('global', False)
                         if is_global:
-                            log.info('Global rate limit has been hit. Retrying in {:.2} seconds.'.format(retry_after))
+                            log.info('Global rate limit has been hit. Retrying in {:.2} seconds.'.format(
+                                retry_after))
                             self._global_over.clear()
 
                         yield from asyncio.sleep(retry_after, loop=self.loop)
-                        log.debug('Done sleeping for the rate limit. Retrying...')
+                        log.debug(
+                            'Done sleeping for the rate limit. Retrying...')
 
                         # release the global lock now that the
                         # global rate limit has passed
@@ -224,7 +235,8 @@ class HTTPClient:
         yield from self.session.close()
 
     def recreate(self):
-        self.session = aiohttp.ClientSession(connector=self.connector, loop=self.loop)
+        self.session = aiohttp.ClientSession(
+            connector=self.connector, loop=self.loop)
 
     def _token(self, token, *, bot=True):
         self.token = token
@@ -243,7 +255,8 @@ class HTTPClient:
             data = yield from self.request(Route('POST', '/auth/login'), json=payload)
         except HTTPException as e:
             if e.response.status == 400:
-                raise LoginFailure('Improper credentials have been passed.') from e
+                raise LoginFailure(
+                    'Improper credentials have been passed.') from e
             raise
 
         self._token(data['token'], bot=False)
@@ -279,7 +292,8 @@ class HTTPClient:
     # TODO: remove guild_id parameters here
 
     def send_message(self, channel_id, content, *, guild_id=None, tts=False, embed=None):
-        r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
+        r = Route(
+            'POST', '/channels/{channel_id}/messages', channel_id=channel_id)
         payload = {}
 
         if content:
@@ -297,7 +311,8 @@ class HTTPClient:
         return self.request(Route('POST', '/channels/{channel_id}/typing', channel_id=channel_id))
 
     def send_file(self, channel_id, buffer, *, guild_id=None, filename=None, content=None, tts=False, embed=None):
-        r = Route('POST', '/channels/{channel_id}/messages', channel_id=channel_id)
+        r = Route(
+            'POST', '/channels/{channel_id}/messages', channel_id=channel_id)
         form = aiohttp.FormData()
 
         payload = {'tts': tts}
@@ -307,17 +322,19 @@ class HTTPClient:
             payload['embed'] = embed
 
         form.add_field('payload_json', utils.to_json(payload))
-        form.add_field('file', buffer, filename=filename, content_type='application/octet-stream')
+        form.add_field('file', buffer, filename=filename,
+                       content_type='application/octet-stream')
 
         return self.request(r, data=form)
 
     def delete_message(self, channel_id, message_id, guild_id=None):
         r = Route('DELETE', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id,
-                                                                            message_id=message_id)
+                  message_id=message_id)
         return self.request(r)
 
     def delete_messages(self, channel_id, message_ids, guild_id=None):
-        r = Route('POST', '/channels/{channel_id}/messages/bulk_delete', channel_id=channel_id)
+        r = Route(
+            'POST', '/channels/{channel_id}/messages/bulk_delete', channel_id=channel_id)
         payload = {
             'messages': message_ids
         }
@@ -326,7 +343,7 @@ class HTTPClient:
 
     def edit_message(self, message_id, channel_id, content, *, guild_id=None, embed=None):
         r = Route('PATCH', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id,
-                                                                           message_id=message_id)
+                  message_id=message_id)
         payload = {}
 
         if content:
@@ -363,7 +380,8 @@ class HTTPClient:
         return self.request(r)
 
     def get_message(self, channel_id, message_id):
-        r = Route('GET', '/channels/{channel_id}/messages/{message_id}', channel_id=channel_id, message_id=message_id)
+        r = Route('GET', '/channels/{channel_id}/messages/{message_id}',
+                  channel_id=channel_id, message_id=message_id)
         return self.request(r)
 
     def logs_from(self, channel_id, limit, before=None, after=None, around=None):
@@ -382,11 +400,11 @@ class HTTPClient:
 
     def pin_message(self, channel_id, message_id):
         return self.request(Route('PUT', '/channels/{channel_id}/pins/{message_id}',
-                            channel_id=channel_id, message_id=message_id))
+                                  channel_id=channel_id, message_id=message_id))
 
     def unpin_message(self, channel_id, message_id):
         return self.request(Route('DELETE', '/channels/{channel_id}/pins/{message_id}',
-                            channel_id=channel_id, message_id=message_id))
+                                  channel_id=channel_id, message_id=message_id))
 
     def pins_from(self, channel_id):
         return self.request(Route('GET', '/channels/{channel_id}/pins', channel_id=channel_id))
@@ -394,22 +412,26 @@ class HTTPClient:
     # Member management
 
     def kick(self, user_id, guild_id):
-        r = Route('DELETE', '/guilds/{guild_id}/members/{user_id}', guild_id=guild_id, user_id=user_id)
+        r = Route(
+            'DELETE', '/guilds/{guild_id}/members/{user_id}', guild_id=guild_id, user_id=user_id)
         return self.request(r)
 
     def ban(self, user_id, guild_id, delete_message_days=1):
-        r = Route('PUT', '/guilds/{guild_id}/bans/{user_id}', guild_id=guild_id, user_id=user_id)
+        r = Route('PUT', '/guilds/{guild_id}/bans/{user_id}',
+                  guild_id=guild_id, user_id=user_id)
         params = {
             'delete-message-days': delete_message_days
         }
         return self.request(r, params=params)
 
     def unban(self, user_id, guild_id):
-        r = Route('DELETE', '/guilds/{guild_id}/bans/{user_id}', guild_id=guild_id, user_id=user_id)
+        r = Route(
+            'DELETE', '/guilds/{guild_id}/bans/{user_id}', guild_id=guild_id, user_id=user_id)
         return self.request(r)
 
     def server_voice_state(self, user_id, guild_id, *, mute=None, deafen=None):
-        r = Route('PATCH', '/guilds/{guild_id}/members/{user_id}', guild_id=guild_id, user_id=user_id)
+        r = Route('PATCH', '/guilds/{guild_id}/members/{user_id}',
+                  guild_id=guild_id, user_id=user_id)
         payload = {}
         if mute is not None:
             payload['mute'] = mute
@@ -441,14 +463,16 @@ class HTTPClient:
         return self.request(Route('PATCH', '/guilds/{guild_id}/members/@me/nick', guild_id=guild_id), json=payload)
 
     def change_nickname(self, guild_id, user_id, nickname):
-        r = Route('PATCH', '/guilds/{guild_id}/members/{user_id}', guild_id=guild_id, user_id=user_id)
+        r = Route('PATCH', '/guilds/{guild_id}/members/{user_id}',
+                  guild_id=guild_id, user_id=user_id)
         payload = {
             'nick': nickname
         }
         return self.request(r, json=payload)
 
     def edit_member(self, guild_id, user_id, **fields):
-        r = Route('PATCH', '/guilds/{guild_id}/members/{user_id}', guild_id=guild_id, user_id=user_id)
+        r = Route('PATCH', '/guilds/{guild_id}/members/{user_id}',
+                  guild_id=guild_id, user_id=user_id)
         return self.request(r, json=fields)
 
     # Channel management
@@ -537,13 +561,15 @@ class HTTPClient:
         payload = {
             'name': name
         }
-        r = Route('PATCH', '/guilds/{guild_id}/emojis/{emoji_id}', guild_id=guild_id, emoji_id=emoji_id)
+        r = Route('PATCH', '/guilds/{guild_id}/emojis/{emoji_id}',
+                  guild_id=guild_id, emoji_id=emoji_id)
         return self.request(r, json=payload)
 
     # Invite management
 
     def create_invite(self, channel_id, **options):
-        r = Route('POST', '/channels/{channel_id}/invites', channel_id=channel_id)
+        r = Route(
+            'POST', '/channels/{channel_id}/invites', channel_id=channel_id)
         payload = {
             'max_age': options.get('max_age', 0),
             'max_uses': options.get('max_uses', 0),
@@ -571,7 +597,8 @@ class HTTPClient:
     # Role management
 
     def edit_role(self, guild_id, role_id, **fields):
-        r = Route('PATCH', '/guilds/{guild_id}/roles/{role_id}', guild_id=guild_id, role_id=role_id)
+        r = Route('PATCH', '/guilds/{guild_id}/roles/{role_id}',
+                  guild_id=guild_id, role_id=role_id)
         valid_keys = ('name', 'permissions', 'color', 'hoist', 'mentionable')
         payload = {
             k: v for k, v in fields.items() if k in valid_keys
@@ -579,7 +606,8 @@ class HTTPClient:
         return self.request(r, json=payload)
 
     def delete_role(self, guild_id, role_id):
-        r = Route('DELETE', '/guilds/{guild_id}/roles/{role_id}', guild_id=guild_id, role_id=role_id)
+        r = Route(
+            'DELETE', '/guilds/{guild_id}/roles/{role_id}', guild_id=guild_id, role_id=role_id)
         return self.request(r)
 
     def replace_roles(self, user_id, guild_id, role_ids):
@@ -610,11 +638,13 @@ class HTTPClient:
             'deny': deny,
             'type': type
         }
-        r = Route('PUT', '/channels/{channel_id}/permissions/{target}', channel_id=channel_id, target=target)
+        r = Route('PUT', '/channels/{channel_id}/permissions/{target}',
+                  channel_id=channel_id, target=target)
         return self.request(r, json=payload)
 
     def delete_channel_permissions(self, channel_id, target):
-        r = Route('DELETE', '/channels/{channel_id}/permissions/{target}', channel_id=channel_id, target=target)
+        r = Route('DELETE', '/channels/{channel_id}/permissions/{target}',
+                  channel_id=channel_id, target=target)
         return self.request(r)
 
     # Voice management

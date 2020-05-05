@@ -15,7 +15,7 @@ __title__ = 'discord'
 __author__ = 'Rapptz'
 __license__ = 'MIT'
 __copyright__ = 'Copyright 2015-2016 Rapptz'
-__version__ = '0.16.14'
+__version__ = '0.16.15'
 
 from .client import Client, AppInfo, ChannelPermissions
 from .user import User
@@ -41,9 +41,11 @@ from .embeds import Embed
 
 import logging
 
-VersionInfo = namedtuple('VersionInfo', 'major minor micro releaselevel serial')
+VersionInfo = namedtuple(
+    'VersionInfo', 'major minor micro releaselevel serial')
 
-version_info = VersionInfo(major=0, minor=16, micro=14, releaselevel='final', serial=0)
+version_info = VersionInfo(major=0, minor=16, micro=15,
+                           releaselevel='final', serial=0)
 
 try:
     from logging import NullHandler
